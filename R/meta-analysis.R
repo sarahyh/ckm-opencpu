@@ -8,7 +8,7 @@ df <- jsonlite::fromJSON(jsonData)
 
 # We'll need to port in the data from javascript somehow, but it will need to be formatted something like this.
 # These are just some made up numbers with the required structure.
-data <- tibble(
+data <- tibble::tibble(
     # required fields:
     study_id = c(df$studyId),  #c("a", "b", "c", "d"),                   
     standardized_effect_size = c(df$effectSize), #c(1.9, 2.5, 1.5, -0.1),
