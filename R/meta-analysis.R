@@ -4,8 +4,6 @@ library(tidybayes)
 library(jsonlite)
 
 runMetaAnalysis <- function(jsonData) {
-print("start...")
-print(jsonData)
 df <- jsonlite::fromJSON(jsonData)
 
 # We'll need to port in the data from javascript somehow, but it will need to be formatted something like this.
