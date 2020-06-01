@@ -11,7 +11,7 @@ df <- fromJSON(jsonData)
 data <- data.frame(
   # required fields:
   study_id = c(df$studyId),  #c("a", "b", "c", "d"),                   
-  standardized_effect_size = c(df$effectSize), #c(1.9, 2.5, 1.5, -0.1),
+  effect_size = c(df$effectSize), #c(1.9, 2.5, 1.5, -0.1),
   std_err = c(df$stdError), #c(.8, 1.5, 0.6, 1.9),                 
   # optional fields:    
   outcome = c("test_scores", "test_scores", "test_scores", "admissions"), # different measurements
@@ -54,7 +54,7 @@ data <- data %>%
     outcome = as.factor(outcome),
     grouping1 = as.factor(grouping1) # TODO: make this flexible to handle multiple grouping factors
   )
-data <- escalc(measure = "SMD", yi = standardized_effect_size, sei = std_err, data = data) # TODO: adapt this for different inputs
+data <- escalc(measure = "SMD", yi = effect_size, sei = std_err, data = data) # TODO: adapt this for different inputs
 
 # Run the model.
 model <- eval(parse(text = spec))
