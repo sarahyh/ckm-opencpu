@@ -46,27 +46,27 @@ df <- df %>%
       outcomeType == "continuous" & !is.na(pValue) & !is.na(nTails) ~ qt(p = pValue / nTails, df = N - 2),
       outcomeType == "continuous" & !is.na(fValue)                  ~ sqrt(fValue),
       TRUE                                                               ~ tValue 
-    )
+    ),
     stdErr = case_when( # cases where we calculate stdErr from test statistics, etc.
       outcomeType == "continuous" & !is.na(lowerBoundCI) & !is.na(upperBoundCI) & !is.na(confLevelCI) ~ 0.5 * (upperBoundCI - lowerBoundCI) / abs(qt(p = (confLevelCI + (100 - confLevelCI) / 2) / 100, df = N - 2)),
       outcomeType == "continuous" & !is.na(meanDiff) & !is.na(tValue)                                 ~ abs(meanDiff / tValue),
       TRUE                                                                                                 ~ stdErr
-    )
+    ),
     sdDiff = case_when(
       outcomeType == "continuous" & !is.na(sdExp) & !is.na(sdCtrl) ~ sqrt(((nExp - 1) * sdExp^2 + (nCtrl - 1) * sdCtrl^2) / (N - 2)),
       outcomeType == "continuous" & !is.na(stdErr)                 ~ stdErr / sqrt(1 / nExp + 1 / nCtrl),
       TRUE                                                              ~ sdDiff
-    )
+    ),
     stdErr = case_when( # cases where we calculate stdErr from sdDiff and not the other way around
       outcomeType == "continuous" & !is.na(sdDiff) & is.na(stdErr) ~ sdDiff * sqrt(1 / nExp + 1 / nCtrl), 
       TRUE                                                              ~ stdErr
-    )
+    ),
 
     # Now, calculate standardized effect size if we can.
     SMD = case_when(
       outcomeType == "continuous" & !is.na(meanDiff) & !is.na(sdDiff) ~ meanDiff / sdDiff * (1 - 3 / (4 * (nExp + nCtrl) - 9)), # apply Hedges' correction
       TRUE                                                                 ~ SMD
-    )
+    ),
     stdErrSMD = case_when(
       outcomeType == "continuous" & !is.na(SMD) ~ sqrt((nExp + nCtrl) / (nExp * nCtrl) + SMD^2 / (2 * (nExp + nCtrl))),
       TRUE                                           ~ stdErrSMD
