@@ -1,0 +1,36 @@
+[{
+"author": "Author 1",
+"year": "1999",
+"meanExp": 4.0,
+"sdExp": 2.0,
+"nExp": 50,
+"meanCtrl": 5.0,
+"sdCtrl": 1.0,
+"nCtrl": 50,
+"included": true,
+"outcomeType": "continous"
+},
+{
+"author": "Author 2",
+"year": "2001",
+"meanExp": 2.0,
+"sdExp": 1.0,
+"nExp": 50,
+"meanCtrl": 8.0,
+"sdCtrl": 2.0,
+"nCtrl": 50,
+"included": true,
+"outcomeType": "continuous"
+},
+{
+"author": "Author 3",
+"year": "2007",
+"meanExp": 4.0,
+"sdExp": 2.5,
+"nExp": 50,
+"meanCtrl": 3.0,
+"sdCtrl": 1.0,
+"nCtrl": 50,
+"included": true,
+"outcomeType": "continuous"
+}]
