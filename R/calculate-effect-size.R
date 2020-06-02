@@ -6,6 +6,9 @@ library(jsonlite)
 # Read in data that users extract for each study. 
 data <- fromJSON(jsonData)
 # data <- read_json("test.json", simplifyVector = TRUE)
+
+# Force R to handle all numerical data as doubles to prevent type errors.
+data <- data %>% mutate_if(is.integer, as.numeric)
   
 # helper function to add empty columns to df if they don't already exists
 add_col_if_not_exist <- function(df, ...) {
@@ -28,16 +31,16 @@ data <- data %>% add_col_if_not_exist(N, nExp, nCtrl)
 data <- data %>% 
   mutate(
     N = case_when(
-      is.na(N) & !is.na(nExp) & !is.na(nCtrl) ~ as.integer(nExp + nCtrl), # calculate overall sample size
-      TRUE                                    ~ as.integer(N)),
+      is.na(N) & !is.na(nExp) & !is.na(nCtrl) ~ as.numeric(nExp + nCtrl), # calculate overall sample size
+      TRUE                                    ~ as.numeric(N)),
     nExp = case_when(
-      is.na(nExp) & !is.na(nCtrl) & !is.na(N) ~ as.integer(N - nCtrl), # calculate treatment group sample size
-      is.na(nExp) & is.na(nCtrl) & !is.na(N)  ~ as.integer(floor(N / 2)), # assume a balanced design
-      TRUE                                    ~ as.integer(nExp)),
+      is.na(nExp) & !is.na(nCtrl) & !is.na(N) ~ as.numeric(N - nCtrl), # calculate treatment group sample size
+      is.na(nExp) & is.na(nCtrl) & !is.na(N)  ~ as.numeric(floor(N / 2)), # assume a balanced design
+      TRUE                                    ~ as.numeric(nExp)),
     nCtrl = case_when(
-      is.na(nCtrl) & !is.na(nExp) & !is.na(N) ~ as.integer(N - nExp), # calculate control group sample size
-      is.na(nCtrl) & is.na(nExp) & !is.na(N)  ~ as.integer(floor(N / 2)), # assume a balanced design
-      TRUE                                    ~ as.integer(nCtrl))
+      is.na(nCtrl) & !is.na(nExp) & !is.na(N) ~ as.numeric(N - nExp), # calculate control group sample size
+      is.na(nCtrl) & is.na(nExp) & !is.na(N)  ~ as.numeric(floor(N / 2)), # assume a balanced design
+      TRUE                                    ~ as.numeric(nCtrl))
   )
 
 if (any(data[["outcomeType"]] == "continuous")) {
@@ -106,10 +109,10 @@ if (any(data[["outcomeType"]] == "continuous")) {
         TRUE                             ~ as.numeric(pCtrl)),
       countExp = case_when(
         is.na(countExp) & !is.na(pExp) ~ floor(pExp * nExp),
-        TRUE                           ~ as.integer(countExp)),
+        TRUE                           ~ as.numeric(countExp)),
       countCtrl = case_when(
         is.na(countCtrl) & !is.na(pCtrl) ~ floor(pCtrl * nCtrl),
-        TRUE                             ~ as.integer(countCtrl))
+        TRUE                             ~ as.numeric(countCtrl))
     )
     
   # Calculate untransformed risk difference and stdErrRiskDiff (default original units).
