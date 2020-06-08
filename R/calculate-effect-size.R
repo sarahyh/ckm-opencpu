@@ -90,7 +90,7 @@ if (any(data[["outcomeType"]] == "continuous")) {
         TRUE                       ~ as.numeric(pbCor)),
       stdErrPbCor = case_when(
         is.na(stdErrPbCor) & !is.na(pbCor) ~ sqrt((1 - pbCor^2)^2 * (N * pbCor^2 / (4 * nExp * nCtrl) + (2 - 3 * pbCor^2) / (2 * N))),
-        TRUE                                         ~ as.numeric(stdErrPbCor))
+        TRUE                               ~ as.numeric(stdErrPbCor))
     )
   
 } else if (any(data[["outcomeType"]] == "dichotomous")) {
@@ -164,7 +164,7 @@ if (any(data[["outcomeType"]] == "continuous")) {
       # should already have pbCor 
       stdErrPbCor = case_when(
         is.na(stdErrPbCor) & !is.na(pbCor) ~ sqrt((1 - pbCor^2)^2 * (N * pbCor^2 / (4 * nExp * nCtrl) + (2 - 3 * pbCor^2) / (2 * N))),
-        TRUE                                         ~ as.numeric(stdErrPbCor)),
+        TRUE                               ~ as.numeric(stdErrPbCor)),
       zCor = case_when(
         is.na(zCor) & !is.na(pearsonCor) ~ 1 / 2 * log((1 + pearsonCor) / (1 - pearsonCor)),
         TRUE                             ~ as.numeric(zCor)),
@@ -176,7 +176,7 @@ if (any(data[["outcomeType"]] == "continuous")) {
         TRUE                             ~ as.numeric(SMD)),
       stdErrSMD = case_when(
         is.na(stdErrSMD) & !is.na(SMD) ~ sqrt((nExp + nCtrl) / (nExp * nCtrl) + SMD^2 / (2 * (nExp + nCtrl))),
-        TRUE                                       ~ as.numeric(stdErrSMD))
+        TRUE                           ~ as.numeric(stdErrSMD))
     )
 }
 
