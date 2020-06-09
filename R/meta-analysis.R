@@ -10,13 +10,10 @@ data <- fromJSON(jsonData)
 # Pre-processing
 data <- data %>%
   mutate(
-    # effectSize = SMD,
-    # stdErrEffectSize = stdErrSMD,
-    # selectedMetric = "SMD",
     study_id = as.factor(paste(author, " ", year)),
     yi = effectSize,                  
     vi = stdErrEffectSize^2,
-    outcome = as.factor(selectedMetric)
+    outcome = as.factor(standardizedMetric)
   )
 
 # Build up model specification based on data provided and constraints:
