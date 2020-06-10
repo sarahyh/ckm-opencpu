@@ -46,7 +46,7 @@ data <- data %>%
 if (any(data[["outcomeType"]] == "continuous")) {
   # For continuous outcomes...
   # Add columns if we need to.
-  data <- data %>% add_col_if_not_exist(meanDiff, meanExp, meanCtrl, tValue, pValue, nTails, fValue, stdErrMeanDiff, lowerBoundCI, upperBoundCI, confLevelCI, sdDiff, sdExp, sdCtrl, SMD, stdErrSMD, pbCor, stdErrPbCor)
+  data <- data %>% add_col_if_not_exist(meanDiff, meanExp, meanCtrl, tValue, pValue, nTails, fValue, stdErrMeanDiff, lowerBoundCI, upperBoundCI, confLevelCI, sdDiff, sdExp, sdCtrl, r, SMD, stdErrSMD, pbCor, stdErrPbCor)
   
   # Calculate untransformed mean difference if we don't already have it.
   data <- data %>% 
@@ -72,19 +72,22 @@ if (any(data[["outcomeType"]] == "continuous")) {
         is.na(sdDiff) & !is.na(stdErrMeanDiff)         ~ stdErrMeanDiff / sqrt(1 / nExp + 1 / nCtrl),
         TRUE                                           ~ as.numeric(sdDiff)),
       stdErrMeanDiff = case_when( # cases where we calculate stdErrMeanDiff from sdDiff and not the other way around
-        is.na(stdErrMeanDiff) & !is.na(sdDiff) ~ sdDiff * sqrt(1 / nExp + 1 / nCtrl), 
-        TRUE                                   ~ as.numeric(stdErrMeanDiff))
+        is.na(stdErrMeanDiff) & !is.na(r) & !is.na(sdDiff) ~ sqrt(2 * sdDiff * (1 - r) / N), # accounting for correlation (r) across timepoints for within-subjects contrasts
+        is.na(stdErrMeanDiff) & !is.na(sdDiff)             ~ sdDiff * sqrt(1 / nExp + 1 / nCtrl), 
+        TRUE                                               ~ as.numeric(stdErrMeanDiff))
     )
   
   # Now, calculate standardized mean difference and point biserial correlation.
   data <- data %>%
     mutate(
       SMD = case_when(
-        is.na(SMD) & !is.na(meanDiff) & !is.na(sdDiff) ~ meanDiff / sdDiff * (1 - 3 / (4 * (nExp + nCtrl) - 9)), # apply Hedges' correction
-        TRUE                                           ~ as.numeric(SMD)),
+        is.na(SMD) & !is.na(meanDiff) & !is.na(sdDiff) & !is.na(r) ~ meanDiff / sdDiff, # no correction for within-subjects measures (indicated by presence of r)
+        is.na(SMD) & !is.na(meanDiff) & !is.na(sdDiff)             ~ meanDiff / sdDiff * (1 - 3 / (4 * (nExp + nCtrl) - 9)), # apply Hedges' correction
+        TRUE                                                       ~ as.numeric(SMD)),
       stdErrSMD = case_when(
-        is.na(stdErrSMD) & !is.na(SMD) ~ sqrt((nExp + nCtrl) / (nExp * nCtrl) + SMD^2 / (2 * (nExp + nCtrl))),
-        TRUE                           ~ as.numeric(stdErrSMD)),
+        is.na(stdErrSMD) & !is.na(SMD) & !is.na(r) ~ sqrt(2 * (1 - r) / N + SMD^2 / (2 * N)), # accounting for correlation (r) across timepoints for within-subjects contrasts
+        is.na(stdErrSMD) & !is.na(SMD)             ~ sqrt((nExp + nCtrl) / (nExp * nCtrl) + SMD^2 / (2 * (nExp + nCtrl))),
+        TRUE                                       ~ as.numeric(stdErrSMD)),
       pbCor = case_when(
         is.na(pbCor) & !is.na(SMD) ~ SMD / sqrt(1 / ((nExp / N) * (nCtrl / N)) + SMD^2),
         TRUE                       ~ as.numeric(pbCor)),

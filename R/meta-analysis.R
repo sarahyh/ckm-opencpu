@@ -61,7 +61,7 @@ summary <- data_frame(
 ) %>% mutate(
   "pQ" = pchisq(Q, dfQ, lower.tail = FALSE),
   "I2" = if_else(is.null(model[["I2"]]),
-                 100 * (Q - dfQ) / Q, # overall I^2 if no moderators
+                 (Q - dfQ) / Q, # overall I^2 if no moderators
                  model$I2) # residual I^2 after grouping by moderators
 )
 # Get study weights.
