@@ -72,7 +72,10 @@ summary <- data_frame(
   "pQ" = pchisq(Q, dfQ, lower.tail = FALSE),
   "I2" = if_else(is.null(model[["I2"]]),
                  (model$QE - (model$k - model$p)) / model$QE, # overall I^2 if no moderators
-                 model$I2) # residual I^2 after grouping by moderators
+                 model$I2), # residual I^2 after grouping by moderators
+  "standardizedMetric" = if_else(all(data$standardizedMetric == "SMD" | data$standardizedMetric == "arcsineRiskDiff"),
+                                 "SMD",
+                                 "logOddsRatio")
 )
 # Get study weights.
 data <- data %>%
