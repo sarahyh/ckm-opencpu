@@ -81,7 +81,7 @@ summary <- data_frame(
 data <- data %>%
   mutate(weight = weights.rma.mv(model))
 # Join summary with study data.
-data <- data %>% full_join(summary, by = c("author", "effectSize", "stdErrEffectSize"))
+data <- data %>% full_join(summary, by = c("author", "effectSize", "stdErrEffectSize", "standardizedMetric"))
 # Drop columns used only for modeling.
 data <- data[ , !(names(data) %in% c("study_id", "yi", "vi", "outcome"))]
 
