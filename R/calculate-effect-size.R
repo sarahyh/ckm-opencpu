@@ -1,23 +1,3 @@
-# Input variations to test.
-# continuous: 
-  # from sd per group
-  # from sd of difference (pooled standard deviation)
-  # from se of difference
-  # from p-value
-  # from t-value
-  # from f-value
-  # from confidence interval
-  # requires mean difference or group means
-  # requires sample size overall or per group
-  # requires repeated measures correlation for within-subjects
-# dichotomous:
-  # from counts per group
-  # from proportions per group
-  # requires sample size overall or per group
-# association:
-  # requires correlation coefficient (pearson or pb)
-  # requires sample size overall or per group
-
 calculateEffectSize <- function(jsonData) {
 
 library(tidyverse)
@@ -174,39 +154,59 @@ if (any(data[["outcomeType"]] == "dichotomous")) {
   ) 
 }
 
-if (any(data[["outcomeType"]] == "association")) {
-  # For outcomes measured as correlations
-  # Add columns if we need to.
-  data <- data %>% add_col_if_not_exist(pearsonCor, stdErrPearsonCor, pbCor, stdErrPbCor, zCor, stdErrZCor, SMD, stdErrSMD)
-  
-  # Calculate standardized effect size as Pearson correlation, point-biserial correlation, Fisher's Z transformed correlation, and approximate SMD
-  data <- data %>%
-    mutate(
-      # should already have pearsonCor 
-      stdErrPearsonCor = case_when(
-        is.na(stdErrPearsonCor) & !is.na(pearsonCor) ~ sqrt((1 - pearsonCor^2) / (N - 2)),
-        TRUE                                         ~ as.numeric(stdErrPearsonCor)),
-      # should already have pbCor 
-      stdErrPbCor = case_when(
-        is.na(stdErrPbCor) & !is.na(pbCor) ~ sqrt((1 - pbCor^2)^2 * (N * pbCor^2 / (4 * nExp * nCtrl) + (2 - 3 * pbCor^2) / (2 * N))),
-        TRUE                               ~ as.numeric(stdErrPbCor)),
-      zCor = case_when(
-        is.na(zCor) & !is.na(pearsonCor) ~ 1 / 2 * log((1 + pearsonCor) / (1 - pearsonCor)),
-        TRUE                             ~ as.numeric(zCor)),
-      stdErrZCor = case_when(
-        is.na(stdErrZCor) & !is.na(zCor) ~ sqrt(1 / (N - 3)),
-        TRUE                             ~ as.numeric(stdErrZCor)),
-      SMD = case_when(
-        is.na(SMD) & !is.na(pbCor) ~ pbCor / sqrt((nExp / N) * (nCtrl / N) * (1 - pbCor^2)),
-        TRUE                       ~ as.numeric(SMD)),
-      stdErrSMD = case_when(
-        is.na(stdErrSMD) & !is.na(SMD) ~ sqrt((nExp + nCtrl) / (nExp * nCtrl) + SMD^2 / (2 * (nExp + nCtrl))),
-        TRUE                           ~ as.numeric(stdErrSMD))
-    )
-}
+# if (any(data[["outcomeType"]] == "association")) {
+#   # For outcomes measured as correlations
+#   # Add columns if we need to.
+#   data <- data %>% add_col_if_not_exist(pearsonCor, stdErrPearsonCor, pbCor, stdErrPbCor, zCor, stdErrZCor, SMD, stdErrSMD)
+#   
+#   # Calculate standardized effect size as Pearson correlation, point-biserial correlation, Fisher's Z transformed correlation, and approximate SMD
+#   data <- data %>%
+#     mutate(
+#       # should already have pearsonCor 
+#       stdErrPearsonCor = case_when(
+#         is.na(stdErrPearsonCor) & !is.na(pearsonCor) ~ sqrt((1 - pearsonCor^2) / (N - 2)),
+#         TRUE                                         ~ as.numeric(stdErrPearsonCor)),
+#       # should already have pbCor 
+#       stdErrPbCor = case_when(
+#         is.na(stdErrPbCor) & !is.na(pbCor) ~ sqrt((1 - pbCor^2)^2 * (N * pbCor^2 / (4 * nExp * nCtrl) + (2 - 3 * pbCor^2) / (2 * N))),
+#         TRUE                               ~ as.numeric(stdErrPbCor)),
+#       zCor = case_when(
+#         is.na(zCor) & !is.na(pearsonCor) ~ 1 / 2 * log((1 + pearsonCor) / (1 - pearsonCor)),
+#         TRUE                             ~ as.numeric(zCor)),
+#       stdErrZCor = case_when(
+#         is.na(stdErrZCor) & !is.na(zCor) ~ sqrt(1 / (N - 3)),
+#         TRUE                             ~ as.numeric(stdErrZCor)),
+#       SMD = case_when(
+#         is.na(SMD) & !is.na(pbCor) ~ pbCor / sqrt((nExp / N) * (nCtrl / N) * (1 - pbCor^2)),
+#         TRUE                       ~ as.numeric(SMD)),
+#       stdErrSMD = case_when(
+#         is.na(stdErrSMD) & !is.na(SMD) ~ sqrt((nExp + nCtrl) / (nExp * nCtrl) + SMD^2 / (2 * (nExp + nCtrl))),
+#         TRUE                           ~ as.numeric(stdErrSMD))
+#     )
+# }
 
 # Drop columns with nothing in them.
 data <- data[,colSums(is.na(data)) < nrow(data)]
 
 return(list(message = "success", data = toJSON(data)))
 }
+
+# Input variations to test.
+# continuous: 
+# from sd per group
+# from sd of difference (pooled standard deviation)
+# from se of difference
+# from p-value
+# from t-value
+# from f-value
+# from confidence interval
+# requires mean difference or group means
+# requires sample size overall or per group
+# requires repeated measures correlation for within-subjects
+# dichotomous:
+# from counts per group
+# from proportions per group
+# requires sample size overall or per group
+# association:
+# requires correlation coefficient (pearson or pb)
+# requires sample size overall or per group

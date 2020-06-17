@@ -13,7 +13,7 @@
 {
 "author": "Diff sd",
 "year": "2",
-"meanDiff": 1.0,
+"meanDiff": -1.0,
 "sdDiff": 1.581,
 "N": 100,
 "included": true,
@@ -22,7 +22,7 @@
 {
 "author": "Diff se",
 "year": "3",
-"meanDiff": 1.0,
+"meanDiff": -1.0,
 "stdErrMeanDiff": 0.3162278,
 "N": 100,
 "included": true,
@@ -100,21 +100,4 @@
 "N": 100,
 "included": true,
 "outcomeType": "dichotomous"
-},
-{
-"author": "Pearson cor",
-"year": "11",
-"pearsonCor": 0.5,
-"N": 100,
-"included": true,
-"outcomeType": "association"
-},
-{
-"author": "PB cor",
-"year": "12",
-"pbCor": 0.5,
-"nExp": 50,
-"nCtrl": 50,
-"included": true,
-"outcomeType": "association"
 }]

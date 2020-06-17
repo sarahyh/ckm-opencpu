@@ -10,6 +10,15 @@ data <- fromJSON(jsonData)
 # Pre-processing
 data <- data %>%
   mutate(
+    # effectSize = if_else(author == "Counts" | author == "Proportions",
+    #                      logOddsRatio,
+    #                      SMD),
+    # stdErrEffectSize = if_else(author == "Counts" | author == "Proportions",
+    #                            stdErrLogOddsRatio,
+    #                            stdErrSMD),
+    # standardizedMetric = if_else(author == "Counts" | author == "Proportions",
+    #                              "logOddsRatio",
+    #                              "SMD"),
     study_id = as.factor(paste(author, " ", year)),
     yi = effectSize,                  
     vi = stdErrEffectSize^2,
@@ -19,10 +28,10 @@ data <- data %>%
 # Build up model specification based on data provided and constraints:
 # Base model specification as a string.
 spec = "rma.mv(yi, vi" # start with simple fixed effects model
-# Include moderators if provided based on data format.
-if ("outcome" %in% colnames(data) && nlevels(data$outcome) >= 2) {
-  spec <- paste(spec, ",", "mods = ~ outcome") # add fixed effects for different measurements
-} #else {
+# Include moderators if provided based on data format. 
+# if ("outcome" %in% colnames(data) && nlevels(data$outcome) >= 2) {
+#   spec <- paste(spec, ",", "mods = ~ outcome") # add fixed effects for different measurements
+# } else {
 #   spec <- paste(spec, ",", "mods = ~") # start moderator formula expression
 # }
 # for (col in colnames(data)) {
@@ -47,6 +56,7 @@ model <- eval(parse(text = spec))
 
 # Postprocessing model output:
 # Get overall effect size estimate and heterogeniety stats
+# AMK: Adding moderators to model spec changes output of predict so that there is one prediction per study. This will require a change in postprocessing.
 summary <- data_frame(
   "author" = "Overall",
   "summary" = TRUE,
