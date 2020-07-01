@@ -5,10 +5,10 @@ library(jsonlite)
 
 # Read in data that users extract for each study. 
 data <- fromJSON(jsonData)
-# data <- read_json("test.json", simplifyVector = TRUE)
+# data <- read_json("testFromExtraction.json", simplifyVector = TRUE)
 
 # Force R to handle all numerical data as doubles to prevent type errors.
-data <- data %>% mutate_if(is.integer, as.numeric)
+data <- data %>% mutate_if(is.integer, as.numeric) %>% mutate_if(is.na, as.numeric)
   
 # helper function to add empty columns to df if they don't already exists
 add_col_if_not_exist <- function(df, ...) {
@@ -190,6 +190,7 @@ data <- data[,colSums(is.na(data)) < nrow(data)]
 
 return(list(message = "success", data = toJSON(data)))
 }
+
 
 # Input variations to test.
 # continuous: 
