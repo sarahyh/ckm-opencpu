@@ -137,7 +137,7 @@ if (any(data[["outcomeType"]] == "dichotomous")) {
         is.na(logRiskRatio) & !is.na(pExp) & !is.na(pCtrl) ~ log(pExp / pCtrl),
         TRUE                                               ~ as.numeric(logRiskRatio)),
       stdErrLogRiskRatio = case_when(
-        is.na(stdErrLogRiskRatio) & !is.na(countExp) & !is.na(countCtrl) ~ sqrt((N - countExp) / countExp * nExp + (N - countCtrl) / countCtrl * nCtrl),
+        is.na(stdErrLogRiskRatio) & !is.na(countExp) & !is.na(countCtrl) ~ sqrt((nExp - countExp) / (countExp * nExp) + (nCtrl - countCtrl) / (countCtrl * nCtrl)),
         TRUE                                                             ~ as.numeric(stdErrLogRiskRatio)),
       logOddsRatio = case_when(
         is.na(logOddsRatio) & !is.na(pExp) & !is.na(pCtrl) ~ log((pExp / (1 - pExp)) / (pCtrl / (1 - pCtrl))),
