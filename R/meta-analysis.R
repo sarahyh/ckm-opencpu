@@ -75,7 +75,7 @@ summary <- data_frame(
                  model$I2), # residual I^2 after grouping by moderators
   "standardizedMetric" = if_else(all(data$standardizedMetric == "SMD" | data$standardizedMetric == "arcsineRiskDiff"),
                                  "SMD",
-                                 "logOddsRatio")
+                                 "logRiskRatio") # logOddsRatio or logRiskRatio
 )
 # Get study weights.
 data <- data %>%
