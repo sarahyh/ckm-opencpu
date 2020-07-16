@@ -8,7 +8,7 @@ data <- fromJSON(jsonData)
 # data <- read_json("testFromExtraction.json", simplifyVector = TRUE)
 
 # Force R to handle all numerical data as doubles to prevent type errors.
-data <- data %>% mutate_if(is.integer, as.numeric) %>% mutate_if(is.na, as.numeric)
+data <- data %>% mutate_if(is.integer, as.numeric) %>% mutate_if(~all(is.na(.)), as.numeric)
   
 # helper function to add empty columns to df if they don't already exists
 add_col_if_not_exist <- function(df, ...) {
