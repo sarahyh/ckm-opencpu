@@ -1,12 +1,17 @@
-runMetaAnalysis <- function(jsonData) {
+runSensitivityAnalysis <- function(jsonData) {
 
 library(tidyverse)
 library(metafor)
 library(jsonlite)
-# library(multiverse)
 
 # Read in data from json.
 data <- fromJSON(jsonData)
+# data <- output %>%
+#   mutate(
+#     effectSize = SMD,
+#     stdErrEffectSize = stdErrSMD,
+#     standardizedMetric = "SMD"
+#   )
 
 # Pre-processing
 data <- data %>%

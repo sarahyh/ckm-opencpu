@@ -1,4 +1,4 @@
-# escalcWrapper <- function(jsonData) {
+escalcWrapper <- function(jsonData) {
 ## Fills in dataframe with the summary statistics we need for meta-analysis.
 ## Handles studies differently depending on outcomeType, study design, and how information was reported.
 
@@ -7,9 +7,13 @@ library(jsonlite)
 library(metafor)
 
 # Read in data that users extract for each study. 
-# data <- fromJSON(jsonData)
-# data <- read_json("test.json", simplifyVector = TRUE)
-data <- read_json("testFromExtraction.json", simplifyVector = TRUE)
+data <- fromJSON(jsonData)
+# data <- read_json("testFromExtraction.json", simplifyVector = TRUE)
+
+# Three different groups of data to check in testFromExtraction
+# data <- data %>% filter(!showOnly, analyzeSeparately)
+# data <- data %>% filter(!showOnly, !analyzeSeparately)
+# data <- data %>% filter(showOnly)
 
 # Force R to handle all numerical data as doubles to prevent type errors.
 data <- data %>% mutate_if(is.integer, as.numeric) %>% mutate_if(~all(is.na(.)), as.numeric)
@@ -62,14 +66,15 @@ dichotomous_studies <- data %>% filter(outcomeType == "dichotomous")
 
 ## For studies with continuous outcomes...
 # Add columns if we need to.
-continuous_studies <- continuous_studies %>% add_col_if_not_exist(meanDiff, meanExp, meanCtrl, tValue, pValue, nTails, fValue, stdErrMeanDiff, lowerBoundCI, upperBoundCI, confLevelCI, stdErrExp, stdErrCtrl, sdDiff, sdExp, sdCtrl, r, rSquared, sdPooled, SMD, stdErrSMD)
+continuous_studies <- continuous_studies %>% add_col_if_not_exist(meanDiff, meanExp, meanCtrl, tValue, pValue, nTails, fValue, stdErrMeanDiff, lowerBoundCI, upperBoundCI, confLevelCI, stdErrExp, stdErrCtrl, sdDiff, sdExp, sdCtrl, r, rSquared, sdPooled, SMD, stdErrSMD, hedgesCorrection)
 
 # Calculate untransformed mean difference if we don't already have it.
 continuous_studies <- continuous_studies %>% 
   mutate(
     meanDiff = case_when(
-      is.na(meanDiff) & !is.na(meanExp) & !is.na(meanCtrl) ~ meanExp - meanCtrl,
-      TRUE                                                 ~ as.numeric(meanDiff))
+      is.na(meanDiff) & !is.na(meanExp) & !is.na(meanCtrl)                        ~ meanExp - meanCtrl,
+      is.na(meanDiff) & is.na(meanExp) & is.na(meanCtrl) & !is.na(regressionCoef) ~ regressionCoef,
+      TRUE                                                                        ~ as.numeric(meanDiff))
   )
 
 # Alternatively if we don't have the mean difference, we can calculate effect size from a t-test statistic (which can be derived from F or p values).
@@ -97,8 +102,8 @@ continuous_studies <- continuous_studies %>%
       TRUE                                                                                        ~ as.numeric(sdDiff)),
     # With all these possible extraction strategies, sdPooled is what we actually need to calculate effect size.
     sdPooled = case_when(
-      (studyDesign == "withinSubjects") & is.na(sdPooled) & !is.na(sdExp) & !is.na(sdCtrl)                ~ sqrt((sdExp^2 + sdCtrl^2) / 2), # extracted sd per group in within-subjects design (not sure about this)
-      (studyDesign == "withinSubjects") & is.na(sdPooled) & !is.na(stdErrExp) & !is.na(stdErrCtrl)        ~ sqrt(((stdErrExp^2 * nExp) + (stdErrCtrl^2 * nCtrl)) / 2), # extracted stdErr per group in within-subjects design (not sure about this)
+      (studyDesign == "withinSubjects") & is.na(sdPooled) & !is.na(sdExp) & !is.na(sdCtrl)                ~ sqrt((sdExp^2 + sdCtrl^2) / 2), # extracted sd per group in within-subjects design
+      (studyDesign == "withinSubjects") & is.na(sdPooled) & !is.na(stdErrExp) & !is.na(stdErrCtrl)        ~ sqrt(((stdErrExp^2 * nExp) + (stdErrCtrl^2 * nCtrl)) / 2), # extracted stdErr per group in within-subjects design
       (studyDesign == "withinSubjects") & is.na(sdPooled) & !is.na(r) & is.na(rSquared) & !is.na(sdDiff)  ~ sdDiff / sqrt(2 * (1 - r)), # extracted sd is unadjusted sd of a within subjects difference, apply correction for repeated measures correlation
       (studyDesign == "withinSubjects") & is.na(sdPooled) & !is.na(r) & !is.na(rSquared) & !is.na(sdDiff) ~ sdDiff / sqrt(2 * (1 - r)) / sqrt(1 - rSquared), # extracted sd is adjusted for covariates and is the sd of a within subjects difference, apply correction for repeated measures correlation and for coefficient of variation (not sure about this)
       (studyDesign == "betweenSubjects") & is.na(sdPooled) & is.na(rSquared) & !is.na(sdDiff)             ~ as.numeric(sdDiff), # direct extraction of unadjusted pooled sd for between subjects comparison
@@ -125,14 +130,23 @@ continuous_studies <- continuous_studies %>%
   )
 
 # Apply Hedges' correction.
-# Degrees of freedom vary depending on study design (look at book).
-#### pick up here
-
+# Degrees of freedom (df) vary depending on study design (see Cooper, Hedges, Valentine).
+continuous_studies <- continuous_studies %>%
+  mutate(
+    hedgesCorrection = case_when(
+      (studyDesign == "withinSubjects") & is.na(hedgesCorrection) & !is.na(r) & is.na(nCovariates)  ~ 1 - 3 / (4 * (N - 1) - 1), # df = N pairs of observations minus one stat (mean differece)
+      (studyDesign == "withinSubjects") & is.na(hedgesCorrection) & !is.na(r) & !is.na(nCovariates) ~ 1 - 3 / (4 * (N - 1 - nCovariates) - 1), # df = N pairs of observations minus one stat (mean differece) minus number of nCovariates (not sure about this)
+      (studyDesign == "betweenSubjects") & is.na(hedgesCorrection) & is.na(nCovariates)             ~ 1 - 3 / (4 * (nExp + nCtrl - 2) - 1), # df = N observations minus two stats (group means)
+      (studyDesign == "betweenSubjects") & is.na(hedgesCorrection) & !is.na(nCovariates)            ~ 1 - 3 / (4 * (nExp + nCtrl - 2 - nCovariates) - 1), # df = N observations minus two stats (group means) minus number of covariates
+      TRUE                                                                                         ~ as.numeric(hedgesCorrection)),
+    SMD = hedgesCorrection * SMD,
+    stdErrSMD = sqrt(hedgesCorrection^2 * stdErrSMD^2)
+  )
 
 
 ## For studies with dichotomous outcomes...
 # Add columns if we need to.
-dichotomous_studies <- dichotomous_studies %>% add_col_if_not_exist(pExp, countExp, pCtrl, countCtrl)
+dichotomous_studies <- dichotomous_studies %>% add_col_if_not_exist(pExp, countExp, pCtrl, countCtrl, logOddsRatio)
 
 # With whatever information was extracted, calculate proportions and counts per group.
 dichotomous_studies <- dichotomous_studies %>%
@@ -148,52 +162,63 @@ dichotomous_studies <- dichotomous_studies %>%
       TRUE                             ~ as.numeric(countExp)),
     countCtrl = case_when(
       is.na(countCtrl) & !is.na(pCtrl) ~ floor(pCtrl * nCtrl),
-      TRUE                             ~ as.numeric(countCtrl))
+      TRUE                             ~ as.numeric(countCtrl)),
+    # TODO: figure out how to handle results from logistic regression
+    logOddsRatio = case_when(
+      is.na(countCtrl) & is.na(pCtrl) & is.na(countExp) & is.na(pExp) & !is.na(regressionCoef) ~ as.numeric(regressionCoef),
+      TRUE                                                                                     ~ as.numeric(logOddsRatio))
   )
 
-# Use escalc to get risk difference (RD) and its standard error (default original units).
-exp_event <- dichotomous_studies$countExp
-exp_no_event <- dichotomous_studies$nExp - dichotomous_studies$countExp
-ctrl_event <- dichotomous_studies$countCtrl
-ctrl_no_event <- dichotomous_studies$nCtrl - dichotomous_studies$countCtrl
-dichotomous_studies <- escalc(measure = "RD", ai = exp_event, bi = exp_no_event, ci = ctrl_event, di = ctrl_no_event, to = "if0all", data = dichotomous_studies) %>%
-  mutate(
-    riskDiff = yi,
-    stdErrRiskDiff = sqrt(vi)
-  ) %>%
-  select(-c("yi", "vi"))
+# Calculate effect size for dichotomous studies if there are any.
+if (nrow(dichotomous_studies) != 0) {
+  # Use escalc to get risk difference (RD) and its standard error (default original units).
+  exp_event <- dichotomous_studies$countExp
+  exp_no_event <- dichotomous_studies$nExp - dichotomous_studies$countExp
+  ctrl_event <- dichotomous_studies$countCtrl
+  ctrl_no_event <- dichotomous_studies$nCtrl - dichotomous_studies$countCtrl
+  dichotomous_studies <- escalc(measure = "RD", ai = exp_event, bi = exp_no_event, ci = ctrl_event, di = ctrl_no_event, to = "if0all", data = dichotomous_studies) %>%
+    mutate(
+      riskDiff = yi,
+      stdErrRiskDiff = sqrt(vi)
+    ) %>%
+    select(-c("yi", "vi"))
 
-# Standardized units used for meta-analysis need to be comparable across all studies in sample.
-if (nrow(continuous_studies) == 0) {
-  # No continuous outcomes in sample: Use escalc to get log risk ratio (RR) and log odds ratio (OR).
-  dichotomous_studies <- escalc(measure = "RR", ai = exp_event, bi = exp_no_event, ci = ctrl_event, di = ctrl_no_event, to = "if0all", data = dichotomous_studies) %>%
-    mutate(
-      logRiskRatio = yi,
-      stdErrLogRiskRatio = sqrt(vi)
-    ) %>%
-    select(-c("yi", "vi"))
-  dichotomous_studies <- escalc(measure = "OR", ai = exp_event, bi = exp_no_event, ci = ctrl_event, di = ctrl_no_event, to = "if0all", data = dichotomous_studies) %>%
-    mutate(
-      logOddsRatio = yi,
-      stdErrLogOddsRatio = sqrt(vi)
-    ) %>%
-    select(-c("yi", "vi"))
-} else {
-  # Continuous outcomes in sample: Use escalc to get arcsine square-root transformed risk difference (AS) for combining with continuous outcomes.
-  dichotomous_studies <- escalc(measure = "AS", ai = exp_event, bi = exp_no_event, ci = ctrl_event, di = ctrl_no_event, to = "if0all", data = dichotomous_studies) %>%
-    mutate(
-      arcsineRiskDiff = yi,
-      stdErrArcsineRiskDiff = sqrt(vi)
-    ) %>%
-    select(-c("yi", "vi"))
+  # Standardized units used for meta-analysis need to be comparable across all studies in sample.
+  if (nrow(continuous_studies) == 0) {
+    # No continuous outcomes in sample: Use escalc to get log risk ratio (RR) and log odds ratio (OR).
+    dichotomous_studies <- escalc(measure = "RR", ai = exp_event, bi = exp_no_event, ci = ctrl_event, di = ctrl_no_event, to = "if0all", data = dichotomous_studies) %>%
+      mutate(
+        logRiskRatio = yi,
+        stdErrLogRiskRatio = sqrt(vi)
+      ) %>%
+      select(-c("yi", "vi"))
+    dichotomous_studies <- escalc(measure = "OR", ai = exp_event, bi = exp_no_event, ci = ctrl_event, di = ctrl_no_event, to = "if0all", data = dichotomous_studies) %>%
+      mutate(
+        logOddsRatio = yi,
+        stdErrLogOddsRatio = sqrt(vi)
+      ) %>%
+      select(-c("yi", "vi"))
+  } else {
+    # Continuous outcomes in sample: Use escalc to get arcsine square-root transformed risk difference (AS) for combining with continuous outcomes.
+    dichotomous_studies <- escalc(measure = "AS", ai = exp_event, bi = exp_no_event, ci = ctrl_event, di = ctrl_no_event, to = "if0all", data = dichotomous_studies) %>%
+      mutate(
+        arcsineRiskDiff = yi,
+        stdErrArcsineRiskDiff = sqrt(vi)
+      ) %>%
+      select(-c("yi", "vi"))
+  }
 }
 
 
-## Prepare output dataframe.
-# Make sure dataframes have matching column names.    TODO
+## Prepare output dataframe...
+# Make sure dataframes have matching column names.
+# add columns to continuous_studies that are in dichotomous_studies but not already in continuous_studies (sorry for ugly code)
+continuous_studies <- do.call(add_col_if_not_exist, append(list(continuous_studies), as.list(lapply(setdiff(colnames(dichotomous_studies), colnames(continuous_studies)), as.symbol))))
+# add columns to dichotomous_studies that are in continuous_studies but not already in dichotomous_studies (sorry for ugly code)
+dichotomous_studies <- do.call(add_col_if_not_exist, append(list(dichotomous_studies), as.list(lapply(setdiff(colnames(continuous_studies), colnames(dichotomous_studies)), as.symbol))))
 
 # Join dataframes for continuous and dichotomous outcomes.
-output <- rbind(continuous_studies, dichotomous_studies) # this may not work due to column mismatch
+output <- rbind(continuous_studies, dichotomous_studies) # column order should match first argument
 
 # Drop columns with nothing in them.
 output <- output[,colSums(is.na(output)) < nrow(output)]
@@ -203,5 +228,5 @@ output <- output %>%
   arrange(index) %>%
   select(-index)
 
-# return(list(message = "success", data = toJSON(output)))
-# }
+return(list(message = "success", data = toJSON(output)))
+}
