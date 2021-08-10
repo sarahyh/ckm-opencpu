@@ -44,20 +44,28 @@ perm <- function(v) {
 }
 
 # Get unique studies.
-studies <- unique(data$study_id)
+data <- data %>% mutate(
+    id = paste(study_id, group, timePoint)
+    # id = study_id
+  )
+studies <- unique(data$id)
 
 # Declare results data structure.
 results <- list()
+counter <- 0
 
 # Permutation to get subsets of each possible size.
 for (i in 1:length(studies)) { 
-  
-  subsets_of_size_i <- cbind(unique(perm(studies)[,1:i]))
+  if (i == 1) {
+    subsets_of_size_i <- cbind(unique(perm(studies)[,1:i]))
+  } else {
+    subsets_of_size_i <- unique(t(apply(perm(studies)[,1:i], 1, sort)))
+  }
   for (j in 1:length(subsets_of_size_i[,1])) {
     # Filter data to current subset (run each analysis)
     curr_data <- data %>% 
-      filter(study_id %in% subsets_of_size_i[j,]) %>%
-      mutate(study_id = as.factor(study_id))
+      filter(id %in% subsets_of_size_i[j,]) %>%
+      mutate(id = as.factor(id))
     
     if (i > 1) {
       # Build up model specification based on data provided and constraints:
@@ -76,9 +84,9 @@ for (i in 1:length(studies)) {
       #     spec <- paste(spec, "+", col) # add grouping factors to model common sources of bias
       #   }
       # }
-      # We need more than two levels of factor (i.e., study_id) to learn random effects variance parameters.
-      if ("study_id" %in% colnames(curr_data) & nlevels(curr_data$study_id) > 2) {
-        spec <- paste(spec, ",", "random = ~ 1 | study_id") # add random effects per study
+      # We need more than two levels of factor (i.e., id) to learn random effects variance parameters.
+      if ("id" %in% colnames(curr_data) & nlevels(curr_data$id) > 2) {
+        spec <- paste(spec, ",", "random = ~ 1 | id") # add random effects per study
       }
       spec <- paste(spec, ",", "data = curr_data)") # add data and close parenthesis
       
@@ -116,18 +124,18 @@ for (i in 1:length(studies)) {
       # Run no model.
       
       # Carry forward effect size estimate from single study as result.
-      summary <- data_frame(
+      summary <- tibble(
         "author" = "Overall",
         "summary" = TRUE,
         "study_set" = list(subsets_of_size_i[j,]),
         "effectSize" = curr_data$effectSize,
         "stdErrEffectSize" = curr_data$stdErrEffectSize,
-        "tau2" = NULL,
-        "stdErrTau2" = NULL,
-        "Q" = NULL,
-        "dfQ" = NULL,
-        "pQ" = NULL,
-        "I2" = NULL,
+        "tau2" = NA,
+        "stdErrTau2" = NA,
+        "Q" = NA,
+        "dfQ" = NA,
+        "pQ" = NA,
+        "I2" = NA,
         "standardizedMetric" = if_else(all(curr_data$standardizedMetric == "SMD" | curr_data$standardizedMetric == "arcsineRiskDiff"),
                                        "SMD",
                                        "logOddsRatio") # logOddsRatio or logRiskRatio
@@ -141,10 +149,11 @@ for (i in 1:length(studies)) {
     # Join summary with study data.
     curr_data <- curr_data %>% full_join(summary, by = c("author", "effectSize", "stdErrEffectSize", "standardizedMetric"))
     # Drop columns used only for modeling.
-    curr_data <- curr_data[ , !(names(curr_data) %in% c("study_id", "yi", "vi", "outcome"))]
+    curr_data <- curr_data[ , !(names(curr_data) %in% c("yi", "vi", "outcome"))]
     
     # Collate results
-    results <- append(results, curr_data)
+    counter = counter + 1
+    results[[counter]] <- curr_data
   }
 }
 
