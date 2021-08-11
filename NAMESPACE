@@ -1,4 +1,3 @@
-export(calculateEffectSize-test)
 export(runSensitivityAnalysis)
 export(escalcWrapper)
 export(runMetaAnalysis)
