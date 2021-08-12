@@ -1,4 +1,4 @@
-export(runMetaAnalysis)
-export(calculateEffectSize)
 export(runSensitivityAnalysis)
 export(escalcWrapper)
+export(runMetaAnalysis)
+export(calculateEffectSize)
