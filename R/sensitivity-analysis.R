@@ -16,20 +16,22 @@ data <- fromJSON(jsonData)
 # Pre-processing
 data <- data %>%
   mutate(
-    # effectSize = if_else(outcomeType == "dichotomous",
-    #                      logOddsRatio,
-    #                      SMD),
-    # stdErrEffectSize = if_else(outcomeType == "dichotomous",
-    #                            stdErrLogOddsRatio,
-    #                            stdErrSMD),
-    # standardizedMetric = if_else(outcomeType == "dichotomous",
-    #                              "logOddsRatio",
-    #                              "SMD"),
     study_id = paste(author, " ", year),
     yi = effectSize,                  
     vi = stdErrEffectSize^2,
     outcome = as.factor(standardizedMetric)
   )
+
+# helper function to add empty columns to df if they don't already exists
+add_col_if_not_exist <- function(df, ...) {
+  args <- ensyms(...)
+  for (arg in args) {
+    if (is.null(df[[toString(arg)]])) {
+      df <- df %>% mutate(!!arg := NA)
+    }
+  }
+  return(df)
+}
 
 # List out every possible combination of studies:
 # Define permutation function
@@ -44,9 +46,20 @@ perm <- function(v) {
 }
 
 # Get unique studies.
-data <- data %>% mutate(
-    id = paste(study_id, group, timePoint)
-    # id = study_id
+data <- data %>% 
+  add_col_if_not_exist(group, timePoint) %>% 
+  mutate(
+    id = if_else(!is.na(group) & !is.na(timePoint),
+                 paste(study_id, group, timePoint),
+                 if_else(is.na(group) & !is.na(timePoint),
+                         paste(study_id, timePoint),
+                         if_else(!is.na(group) & is.na(timePoint),
+                                 paste(study_id, group),
+                                 study_id
+                         )
+                   
+                 )
+         )
   )
 studies <- unique(data$id)
 
