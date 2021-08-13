@@ -111,6 +111,7 @@ runSensitivityAnalysis <- function(jsonData) {
         # AMK: Adding moderators to model spec changes output of predict so that there is one prediction per study. This will require a change in postprocessing.
         summary <- data_frame(
           "author" = "Overall",
+          "plotID" = unique(curr_data$plotID),
           "summary" = TRUE,
           "study_set" = list(subsets_of_size_i[j,]),
           "effectSize" = predict.rma(model)$pred,
@@ -139,6 +140,7 @@ runSensitivityAnalysis <- function(jsonData) {
         # Carry forward effect size estimate from single study as result.
         summary <- tibble(
           "author" = "Overall",
+          "plotID" = unique(curr_data$plotID),
           "summary" = TRUE,
           "study_set" = list(subsets_of_size_i[j,]),
           "effectSize" = curr_data$effectSize,
