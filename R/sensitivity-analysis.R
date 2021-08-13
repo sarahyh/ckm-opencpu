@@ -162,7 +162,7 @@ runSensitivityAnalysis <- function(jsonData) {
       
       
       # Join summary with study data.
-      curr_data <- curr_data %>% full_join(summary, by = c("author", "effectSize", "stdErrEffectSize", "standardizedMetric"))
+      curr_data <- curr_data %>% full_join(summary, by = c("author", "plotID", "effectSize", "stdErrEffectSize", "standardizedMetric"))
       # Drop columns used only for modeling.
       curr_data <- curr_data[ , !(names(curr_data) %in% c("yi", "vi", "outcome"))]
       
