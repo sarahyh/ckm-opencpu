@@ -96,10 +96,12 @@ escalcWrapper <- function(jsonData) {
         TRUE                                                                                      ~ as.numeric(stdErrMeanDiff)),
       # In some cases, users extract data about the sd or stdErr per group in a between-subjects design.
       sdDiff = case_when(
-        (studyDesign == "betweenSubjects") & is.na(sdDiff) & !is.na(sdExp) & !is.na(sdCtrl)         ~ sqrt(((nExp - 1) * sdExp^2 + (nCtrl - 1) * sdCtrl^2) / (N - 2)), # extracted sd per group in between-subjects design
-        (studyDesign == "betweenSubjects") & is.na(sdDiff) & !is.na(stdErrExp) & !is.na(stdErrCtrl) ~ sqrt(((nExp - 1) * (stdErrExp^2 * nExp) + (nCtrl - 1) * (stdErrCtrl^2 * nCtrl)) / (N - 2)), # extracted stdErr per group in between-subjects design
-        is.na(sdDiff) & !is.na(stdErrMeanDiff)                                                      ~ stdErrMeanDiff / sqrt(1 / nExp + 1 / nCtrl), # carrying forward data about the stdErr of the difference
-        TRUE                                                                                        ~ as.numeric(sdDiff)),
+        (studyDesign == "withinSubjects") & is.na(sdDiff) & !is.na(sdExp) & !is.na(sdCtrl) & !is.na(r)         ~ sqrt(sdExp^2 + sdCtrl^2 - 2 * r * sdExp * sdCtrl), # extracted sd per group in within-subjects design
+        (studyDesign == "withinSubjects") & is.na(sdDiff) & !is.na(stdErrExp) & !is.na(stdErrCtrl) & !is.na(r) ~ sqrt((stdErrExp * sqrt(nExp))^2 + (stdErrCtrl * sqrt(nCtrl))^2 - 2 * r * (stdErrExp * sqrt(nExp)) * (stdErrCtrl * sqrt(nCtrl))), # extracted stdErr per group in within-subjects design
+        (studyDesign == "betweenSubjects") & is.na(sdDiff) & !is.na(sdExp) & !is.na(sdCtrl)                    ~ sqrt(((nExp - 1) * sdExp^2 + (nCtrl - 1) * sdCtrl^2) / (N - 2)), # extracted sd per group in between-subjects design
+        (studyDesign == "betweenSubjects") & is.na(sdDiff) & !is.na(stdErrExp) & !is.na(stdErrCtrl)            ~ sqrt(((nExp - 1) * (stdErrExp^2 * nExp) + (nCtrl - 1) * (stdErrCtrl^2 * nCtrl)) / (N - 2)), # extracted stdErr per group in between-subjects design
+        is.na(sdDiff) & !is.na(stdErrMeanDiff)                                                                 ~ stdErrMeanDiff / sqrt(1 / nExp + 1 / nCtrl), # carrying forward data about the stdErr of the difference
+        TRUE                                                                                                   ~ as.numeric(sdDiff)),
       # With all these possible extraction strategies, sdPooled is what we actually need to calculate effect size.
       sdPooled = case_when(
         (studyDesign == "withinSubjects") & is.na(sdPooled) & !is.na(sdExp) & !is.na(sdCtrl)                ~ sqrt((sdExp^2 + sdCtrl^2) / 2), # extracted sd per group in within-subjects design
@@ -108,7 +110,12 @@ escalcWrapper <- function(jsonData) {
         (studyDesign == "withinSubjects") & is.na(sdPooled) & !is.na(r) & !is.na(rSquared) & !is.na(sdDiff) ~ sdDiff / sqrt(2 * (1 - r)) / sqrt(1 - rSquared), # extracted sd is adjusted for covariates and is the sd of a within subjects difference, apply correction for repeated measures correlation and for coefficient of variation (not sure about this)
         (studyDesign == "betweenSubjects") & is.na(sdPooled) & is.na(rSquared) & !is.na(sdDiff)             ~ as.numeric(sdDiff), # direct extraction of unadjusted pooled sd for between subjects comparison
         (studyDesign == "betweenSubjects") & is.na(sdPooled) & !is.na(rSquared) & !is.na(sdDiff)            ~ sdDiff / sqrt(1 - rSquared), # extracted sd is adjusted for covariates, apply correction for coefficient of variation
-        TRUE                                                                                                ~ as.numeric(sdPooled))
+        TRUE                                                                                                ~ as.numeric(sdPooled)),
+      # Make sure we calculate the standard error of the effect in original units bc we need to display these.
+      stdErrMeanDiff = case_when(  
+        (studyDesign == "withinSubjects") & is.na(stdErrMeanDiff) & !is.na(sdDiff)  ~ sdDiff * sqrt(1 / N), # carrying forward data about sdDiff
+        (studyDesign == "betweenSubjects") & is.na(stdErrMeanDiff) & !is.na(sdDiff) ~ sdDiff * sqrt(1 / nExp + 1 / nCtrl), # carrying forward data about sdDiff
+        TRUE                                                                        ~ as.numeric(stdErrMeanDiff))
     )
   
   # Calculate effect size using either the meanDiff and sdPooled OR tValue, making adjustments/corrections as appropriate.
@@ -162,12 +169,33 @@ escalcWrapper <- function(jsonData) {
         TRUE                             ~ as.numeric(countExp)),
       countCtrl = case_when(
         is.na(countCtrl) & !is.na(pCtrl) ~ floor(pCtrl * nCtrl),
-        TRUE                             ~ as.numeric(countCtrl)),
-      # TODO: figure out how to handle results from logistic regression
-      logOddsRatio = case_when(
-        is.na(countCtrl) & is.na(pCtrl) & is.na(countExp) & is.na(pExp) & !is.na(regressionCoef) ~ as.numeric(regressionCoef),
-        TRUE                                                                                     ~ as.numeric(logOddsRatio))
+        TRUE                             ~ as.numeric(countCtrl))
     )
+  
+  # # TODO: Handle inputs from regression coefficients with dichotomous outcomes (can we treat log odds units like SMDs)
+  # dichotomous_studies <- dichotomous_studies %>%
+  #   mutate(
+  #     # Calculate tValue if we have the information to do so.
+  #     tValue = case_when(
+  #       is.na(tValue) & !is.na(pValue) & !is.na(nTails) ~ qt(p = pValue / nTails, df = N - 2), # this derivation is always positive (no info on direction of effect)
+  #       is.na(tValue) & !is.na(fValue)                  ~ sqrt(fValue), # this derivation is always positive (no info on direction of effect)
+  #       TRUE                                            ~ as.numeric(tValue)),
+  #     # Calculate log odds ratio either from regression coefficient OR tValue.
+  #     logOddsRatio = case_when(
+  #       is.na(logOddsRatio) & !is.na(regressionCoef)                                                            ~ as.numeric(regressionCoef),
+  #       (studyDesign == "withinSubjects") & is.na(logOddsRatio) & !is.na(tValue) & !is.na(r) & is.na(rSquared)  ~ tValue * sqrt(2 * (1 - r) / N), # adjust t value for repeated measures correlation
+  #       (studyDesign == "withinSubjects") & is.na(logOddsRatio) & !is.na(tValue) & !is.na(r) & !is.na(rSquared) ~ tValue * sqrt(2 * (1 - r) / N) * sqrt(1 - rSquared), # adjust t value for repeated measures correlation and coefficient of variation (not sure about this)
+  #       (studyDesign == "betweenSubjects") & is.na(logOddsRatio) & !is.na(tValue) & is.na(rSquared)             ~ tValue * sqrt((nExp + nCtrl) / (nExp * nCtrl)), # t value does not need to be adjusted for between-subjects design with no model covariates
+  #       (studyDesign == "betweenSubjects") & is.na(logOddsRatio) & !is.na(tValue) & !is.na(rSquared)            ~ tValue * sqrt((nExp + nCtrl) / (nExp * nCtrl)) * sqrt(1 - rSquared), # adjust t value for coefficient of variation
+  #       TRUE                                                                                                    ~ as.numeric(logOddsRatio)),
+  #     # Calculate standard error of log odds ratio either from regression coefficient OR tValue.
+  #     stdErrLogOddsRatio = case_when(
+  #       (studyDesign == "withinSubjects") & is.na(stdErrLogOddsRatio) & !is.na(logOddsRatio) & !is.na(r) & is.na(rSquared)  ~ sqrt(((1 / N) + (SMD^2 / (2 * N))) * (2 * (1 - r))), # adjust stdErr of SMD for repeated measures correlation
+  #       (studyDesign == "withinSubjects") & is.na(stdErrLogOddsRatio) & !is.na(logOddsRatio) & !is.na(r) & !is.na(rSquared) ~ sqrt(((1 / N) + (SMD^2 / (2 * N))) * (2 * (1 - r)) * (1 - rSquared)), # adjust stdErr of SMD for repeated measures correlation and coefficient of variation (not sure about this)
+  #       (studyDesign == "betweenSubjects") & is.na(stdErrLogOddsRatio) & !is.na(logOddsRatio) & is.na(rSquared)             ~ sqrt(((nExp + nCtrl) / (nExp * nCtrl)) + (SMD^2 / (2 * (nExp + nCtrl)))), # stdErr of SMD does not need to be adjusted for between-subjects design with no model covariates
+  #       (studyDesign == "betweenSubjects") & is.na(stdErrLogOddsRatio) & !is.na(logOddsRatio) & !is.na(rSquared)            ~ sqrt(((nExp + nCtrl) * (1 - rSquared) / (nExp * nCtrl)) + (SMD^2 / (2 * (nExp + nCtrl)))), # adjust stdErr of SMD for coefficient of variation
+  #       TRUE                                                                                                                ~ as.numeric(stdErrSMD))
+  #   )
   
   # Calculate effect size for dichotomous studies if there are any.
   if (nrow(dichotomous_studies) != 0) {
